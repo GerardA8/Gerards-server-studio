@@ -33,7 +33,7 @@ reviewed, selected evidence; never commit credentials or raw server output.
 | Evidence | Actual result / link |
 |---|---|
 | Pre-launch DNS, access, network and route checks | DNS resolves to the selected server address; read-only doctor reported ready on `traefik_default` and `launch-new`. |
-| Prepared Black/Pylint/pytest and real-image browser checks | Final Windows `check --fast`: Black passed; Pylint reports POSIX-only `os` members; pytest collection stops because `signal.SIGHUP` is unavailable. E2E not run. Ubuntu CI result pending. |
+| Prepared Black/Pylint/pytest and real-image browser checks | Windows `check --fast`: Black passed; Pylint reports POSIX-only `os` members; pytest collection stops because `signal.SIGHUP` is unavailable; local E2E was not run. [Full Linux CI run #4](https://github.com/GerardA8/Gerards-server-studio/actions/runs/42297305857) passed all three jobs, including the Ubuntu 24.04 studio job running `python3 studio.py check`. |
 | Hosted image/commit, trusted HTTPS, valid and rejected API cases | [Sanitized report](studio/evidence.json): approved pinned image/commit, trusted HTTPS, `6 × 7 = 42` (200), division by zero (400), numeric string (422). Provenance is `reconfigured`, not a successful new launch. |
 | Preservation of unrelated services | Reconfiguration report checked five unrelated containers' identity, state and published ports; all unchanged. This is a selected check, not a whole-host audit. |
 | Own prediction, check interpretation, browser observation and keep/revise reason | [LEARNING.md](LEARNING.md): prediction and check interpretation recorded; learner observed browser/API `42` and chose keep, with reason recorded. |
