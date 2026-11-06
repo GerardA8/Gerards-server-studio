@@ -2,10 +2,10 @@
 
 ## STUDIO-001 · Launch a tested calculator on an existing server
 
-**Status:** Hosted runtime checks, learner browser evidence and the initial
-full Linux CI run passed; PR #2 is open and unmerged.
-**Next step:** Review the open PR and decide whether to merge; the issue remains
-open pending the final GitHub decision.
+**Status:** Hosted runtime checks, learner browser evidence and full Linux CI
+passed. PR #2 is merged into `main`, and issue #1 is closed as completed.
+**Next step:** No further deployment action is required for this bounded lesson.
+See the linked report and merged PR for the recorded evidence.
 **Instructor implementation:** [issue #9](https://github.com/kaw393939/373_hosting/issues/9).
 Create your own issue from the [lesson template](.github/ISSUE_TEMPLATE/studio-calculator.md).
 
@@ -38,7 +38,7 @@ reviewed, selected evidence; never commit credentials or raw server output.
 | Preservation of unrelated services | Reconfiguration report checked five unrelated containers' identity, state and published ports; all unchanged. This is a selected check, not a whole-host audit. |
 | Own prediction, check interpretation, browser observation and keep/revise reason | [LEARNING.md](LEARNING.md): prediction and check interpretation recorded; learner observed browser/API `42` and chose keep, with reason recorded. |
 | Accuracy review before publishing learner excerpts | Learner reviewed and approved the AI-assistance disclosure in [LEARNING.md](LEARNING.md). |
-| Actual PR, latest CI, merge and issue closure | [PR #2](https://github.com/GerardA8/Gerards-server-studio/pull/2) is open. [PR checks](https://github.com/GerardA8/Gerards-server-studio/pull/2/checks) links to the latest workflow status; the initial full Linux run passed. Merge and issue closure remain pending. |
+| Actual PR, latest CI, merge and issue closure | [PR #2](https://github.com/GerardA8/Gerards-server-studio/pull/2) merged into `main`. [Linux CI run #4](https://github.com/GerardA8/Gerards-server-studio/actions/runs/42297305857) passed all three jobs on commit `e280022676a70c8bc11dd814da1a15daed2c654d`. [Issue #1](https://github.com/GerardA8/Gerards-server-studio/issues/1) is closed as completed. |
 
 Link the exported `studio/evidence.json`, actual CI and issue/PR when available.
 CI does not deploy this server. A fixture, green check, timestamp, closed issue
