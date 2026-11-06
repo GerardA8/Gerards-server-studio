@@ -28,6 +28,7 @@ def plan(config):
         "mode": remote.mode(config),
         "target": config["host"],
         "url": config["url"],
+        "tls_resolver": config["tls_resolver"],
         "project": remote.PROJECT,
         "image": release["image"],
         "commit": release["commit"],

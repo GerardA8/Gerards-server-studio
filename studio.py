@@ -53,6 +53,7 @@ def configure(args):
         "url": args.url,
         "network": args.network,
         "sudo": args.sudo,
+        "tls_resolver": args.tls_resolver,
     }
     runtime.plan(config)
     path = progress.STATE / "config.json"
@@ -188,6 +189,10 @@ def main():
         "--sudo",
         action="store_true",
         help="Docker requires sudo on this server; enter it privately in your terminal",
+    )
+    target.add_argument(
+        "--tls-resolver",
+        help="name of the existing Traefik TLS certificate resolver for this host",
     )
     for name, help_text in {
         "plan": "show the proposed calculator deployment; no server change",

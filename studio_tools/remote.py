@@ -57,8 +57,21 @@ def validate_config(config):
     use_sudo = config.get("sudo", False)
     if not isinstance(use_sudo, bool):
         raise ValueError("sudo must be true or false")
+    tls_resolver = config.get("tls_resolver")
+    if tls_resolver is not None and (
+        not isinstance(tls_resolver, str) or not NETWORK.fullmatch(tls_resolver)
+    ):
+        raise ValueError("Use the name of an existing Traefik TLS resolver")
+    if tls_resolver is not None and host == "local":
+        raise ValueError("A TLS resolver applies only to a hosted route")
     origin = _validate_origin(config.get("url", ""), host)
-    return {"host": host, "url": origin, "network": network, "sudo": use_sudo}
+    return {
+        "host": host,
+        "url": origin,
+        "network": network,
+        "sudo": use_sudo,
+        "tls_resolver": tls_resolver,
+    }
 
 
 def _validate_origin(origin, host):
@@ -158,6 +171,10 @@ def compose_model(config, release):
                 f"traefik.http.services.{router}.loadbalancer.server.port": "8000",
             }
         )
+        if config["tls_resolver"]:
+            labels[f"traefik.http.routers.{router}.tls.certresolver"] = config[
+                "tls_resolver"
+            ]
         service["networks"] = ["hosting"]
         model["networks"] = {"hosting": {"external": True, "name": config["network"]}}
     return model
@@ -232,13 +249,17 @@ def _snapshot(config):
         routes = _docker(config, "inspect", "--format", router_template, identifier)
         record["rules"] = []
         record["router_names"] = []
+        record["router_resolvers"] = {}
         for line in routes.splitlines():
             key, remainder = json.JSONDecoder().raw_decode(line)
-            record["router_names"].append(
-                key.removeprefix("traefik.http.routers.").split(".", 1)[0]
-            )
+            router_name = key.removeprefix("traefik.http.routers.").split(".", 1)[0]
+            record["router_names"].append(router_name)
             if key.endswith(".rule"):
                 record["rules"].append(json.loads(line[remainder:].strip()))
+            elif key.endswith(".tls.certresolver"):
+                record["router_resolvers"][router_name] = json.loads(
+                    line[remainder:].strip()
+                )
         records.append(record)
     return records
 
@@ -510,7 +531,7 @@ def _preservation(before, after, selected):
     others = {
         record["id"]: (record["image_id"], record["state"], record["ports"])
         for record in before
-        if record["id"] != selected["id"]
+        if record["id"] != selected["id"] and record["project"] != PROJECT
     }
     current = {record["id"]: record for record in after}
     unchanged = all(
@@ -540,7 +561,7 @@ def _report(config, release, selected, before, provenance):
         raise RuntimeError("The selected calculator is not running")
     image = _image_info(config, selected["image_id"])
     _assert_image(image, release)
-    if provenance == "launched" and mode(config) == "hosted":
+    if provenance in {"launched", "reconfigured"} and mode(config) == "hosted":
         _wait_new_route(config, release)
     health, checks = _http_checks(config, release)
     after = _snapshot(config)
@@ -553,11 +574,16 @@ def _report(config, release, selected, before, provenance):
         "project": PROJECT,
         "provenance": provenance,
         "new_launch": provenance == "launched",
-        "expected": {"image": release["image"], "commit": release["commit"]},
+        "expected": {
+            "image": release["image"],
+            "commit": release["commit"],
+            "tls_resolver": config["tls_resolver"],
+        },
         "actual": {
             **image,
             "environment": health["environment"],
             "container_id": selected["id"],
+            "tls_resolver": selected.get("router_resolvers", {}).get(ROUTER),
         },
         "checks": checks,
         "preservation": preservation,
@@ -596,6 +622,17 @@ def _save_report(workdir, report):
     path.chmod(0o600)
 
 
+def _write_manifest(workdir, config, release):
+    """Write the selected Compose model without following a symlink."""
+    directory = safe_directory(workdir)
+    manifest = directory / "compose.json"
+    if manifest.is_symlink():
+        raise ValueError("Refusing a symbolic-link Compose destination")
+    manifest.write_text(json.dumps(compose_model(config, release), indent=2) + "\n")
+    manifest.chmod(0o600)
+    return directory, manifest
+
+
 def launch(config, release, workdir):
     """Launch the calculator, or verify an existing route without replacing it."""
     config, release = validate_config(config), validate_release(release)
@@ -605,15 +642,48 @@ def launch(config, release, workdir):
         _save_report(workdir, report)
         return report
     if managed and managed[0]["state"] == "running":
+        current_resolver = managed[0].get("router_resolvers", {}).get(ROUTER)
+        if config["tls_resolver"] and current_resolver != config["tls_resolver"]:
+            _assert_image(_image_info(config, managed[0]["image_id"]), release)
+            directory, manifest = _write_manifest(workdir, config, release)
+            print(
+                "Updating only the owned calculator project "
+                "with the reviewed TLS resolver.",
+                flush=True,
+            )
+            _docker(
+                config,
+                "compose",
+                "--project-name",
+                PROJECT,
+                "-f",
+                str(manifest),
+                "up",
+                "-d",
+                "--wait",
+                "--wait-timeout",
+                "60",
+                timeout=90,
+            )
+            after = _snapshot(config)
+            selected = [record for record in after if record["project"] == PROJECT]
+            if (
+                len(selected) != 1
+                or selected[0]["owner"] != owner_id(config, release)
+                or selected[0]["lesson"] != LESSON
+                or selected[0].get("router_resolvers", {}).get(ROUTER)
+                != config["tls_resolver"]
+            ):
+                raise RuntimeError(
+                    "The managed calculator TLS route could not be verified"
+                )
+            report = _report(config, release, selected[0], before, "reconfigured")
+            _save_report(directory, report)
+            return report
         report = _report(config, release, managed[0], before, "already-managed")
         _save_report(workdir, report)
         return report
-    directory = safe_directory(workdir)
-    manifest = directory / "compose.json"
-    if manifest.is_symlink():
-        raise ValueError("Refusing a symbolic-link Compose destination")
-    manifest.write_text(json.dumps(compose_model(config, release), indent=2) + "\n")
-    manifest.chmod(0o600)
+    directory, manifest = _write_manifest(workdir, config, release)
     command = ("compose", "--project-name", PROJECT, "-f", str(manifest))
     print(
         "Pulling the calculator image; existing hosting services stay in place.",

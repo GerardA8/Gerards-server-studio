@@ -86,7 +86,10 @@ def issue_number(url, repo, kind="issues"):
 
 def fingerprint(config):
     """Invalidate runtime evidence when the selected deployment target changes."""
-    selection = {name: config.get(name) for name in ("host", "url", "network", "sudo")}
+    selection = {
+        name: config.get(name)
+        for name in ("host", "url", "network", "sudo", "tls_resolver")
+    }
     return hashlib.sha256(json.dumps(selection, sort_keys=True).encode()).hexdigest()
 
 
@@ -238,6 +241,7 @@ def status(config, repo, online=True):
         and report.get("target_fingerprint") == fingerprint(config)
         and report.get("expected", {}).get("image") == release["image"]
         and report.get("expected", {}).get("commit") == release["commit"]
+        and report.get("expected", {}).get("tls_resolver") == config.get("tls_resolver")
         and report.get("actual", {}).get("commit") == release["commit"]
         and report.get("actual", {}).get("environment") == "production"
         and any(
@@ -312,6 +316,7 @@ def public_report(report):
             "container_id",
             "architecture",
             "os",
+            "tls_resolver",
         )
         result["actual"] = {
             name: result["actual"][name] for name in allowed if name in result["actual"]

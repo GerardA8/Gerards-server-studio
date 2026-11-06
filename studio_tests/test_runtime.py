@@ -15,6 +15,7 @@ LOCAL = {
     "url": "http://127.0.0.1:18090",
     "network": "web",
     "sudo": False,
+    "tls_resolver": None,
 }
 HOSTED = {
     **LOCAL,
@@ -38,6 +39,7 @@ def container(**overrides):
         "rules": [],
         "networks": ["web"],
         "router_names": [],
+        "router_resolvers": {},
         **overrides,
     }
 
@@ -90,6 +92,7 @@ def stub_docker(monkeypatch, records, *, network="web"):
         {"host": "student@host $(id)"},
         {"network": "web;id"},
         {"network": "host"},
+        {"tls_resolver": "le;id"},
         {"sudo": "yes"},
         {"url": "https://name:password@example.org"},
         {"url": "https://example.org/path"},
@@ -133,6 +136,14 @@ def test_hosted_plan_uses_one_existing_network_without_second_proxy():
     assert service["security_opt"] == ["no-new-privileges:true"]
     assert result["compose"]["networks"]["hosting"] == {"external": True, "name": "web"}
     assert not any(key.endswith(".tls") for key in service["labels"])
+
+
+def test_hosted_plan_uses_only_the_explicit_existing_tls_resolver():
+    result = runtime.plan({**HOSTED, "tls_resolver": "le"})
+    labels = result["compose"]["services"]["calculator"]["labels"]
+    assert (
+        labels["traefik.http.routers.is373-studio-calculator.tls.certresolver"] == "le"
+    )
 
 
 def test_unknown_studio_project_is_not_replaced(monkeypatch, tmp_path):
@@ -209,6 +220,76 @@ def test_exact_existing_calculator_is_adopted_without_deployment(monkeypatch, tm
     assert report["checks"]["negative_numeric_string"]["status"] == 422
     assert not any("pull" in call or "up" in call for call in calls)
     assert (tmp_path / "report.json").stat().st_mode & 0o777 == 0o600
+
+
+def test_managed_route_reconfiguration_updates_only_owned_calculator(
+    monkeypatch, tmp_path
+):
+    config = {**HOSTED, "tls_resolver": "le"}
+    managed = container(
+        id="a" * 64,
+        project=remote.PROJECT,
+        owner=remote.owner_id(config, RELEASE),
+        lesson=remote.LESSON,
+        rules=["Host(`calculator.example.org`)"],
+        router_names=[remote.ROUTER],
+    )
+    unrelated = container(
+        id="b" * 64,
+        name="/unrelated",
+        project="existing-site",
+    )
+    updated = container(
+        id="c" * 64,
+        name="/is373-studio-calculator-calculator-1",
+        project=remote.PROJECT,
+        owner=remote.owner_id(config, RELEASE),
+        lesson=remote.LESSON,
+        rules=["Host(`calculator.example.org`)"],
+        router_names=[remote.ROUTER],
+        router_resolvers={remote.ROUTER: "le"},
+    )
+    calls = stub_docker(monkeypatch, [])
+    snapshots = iter([[managed, unrelated], [updated, unrelated], [updated, unrelated]])
+    monkeypatch.setattr(remote, "_snapshot", lambda _config: next(snapshots))
+    monkeypatch.setattr(remote, "_image_info", lambda *_args: image_info())
+    monkeypatch.setattr(remote, "_wait_new_route", lambda *_args: None)
+    monkeypatch.setattr(remote, "_http_json", fake_http)
+    monkeypatch.setattr(remote.os, "geteuid", lambda: 1, raising=False)
+
+    report = remote.launch(config, RELEASE, tmp_path.resolve())
+
+    assert report["provenance"] == "reconfigured"
+    assert report["new_launch"] is False
+    assert report["expected"]["tls_resolver"] == "le"
+    assert report["actual"]["tls_resolver"] == "le"
+    assert report["preservation"]["unchanged"] is True
+    assert any("up" in call for call in calls)
+    manifest = json.loads((tmp_path / "compose.json").read_text())
+    labels = manifest["services"]["calculator"]["labels"]
+    assert (
+        labels["traefik.http.routers.is373-studio-calculator.tls.certresolver"] == "le"
+    )
+
+
+def test_managed_route_reconfiguration_refuses_wrong_image(monkeypatch, tmp_path):
+    config = {**HOSTED, "tls_resolver": "le"}
+    managed = container(
+        project=remote.PROJECT,
+        owner=remote.owner_id(config, RELEASE),
+        lesson=remote.LESSON,
+        rules=["Host(`calculator.example.org`)"],
+    )
+    calls = stub_docker(monkeypatch, [managed])
+    monkeypatch.setattr(
+        remote, "_image_info", lambda *_args: image_info(commit="0" * 40)
+    )
+
+    with pytest.raises(RuntimeError, match="approved digest and commit"):
+        remote.launch(config, RELEASE, tmp_path)
+
+    assert not any("up" in call for call in calls)
+    assert not list(tmp_path.iterdir())
 
 
 def test_stale_public_health_cannot_pass_image_check_alone(monkeypatch):
