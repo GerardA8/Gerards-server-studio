@@ -33,6 +33,9 @@ time. Configuration is saved locally and ignored by Git.
 The coach uses `configure`, `plan` and read-only `doctor`. You do not need to
 guess the network name. A missing Docker/Traefik/HTTPS baseline is a gap to fix
 with help, not a reason to run fresh-server installation over your working host.
+If existing routes use a named TLS resolver, the coach can verify that name and
+include it with `configure --tls-resolver`; this applies only to the calculator
+route, not to the proxy or other sites.
 Keep credentials, private keys and raw server dumps out of the conversation.
 
 Before the plan is explained, make a short prediction: how will a request for

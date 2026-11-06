@@ -61,6 +61,8 @@ The CLI runs from this laptop clone and sends a scoped bundle over SSH/SCP.
 Your server does not need a GitHub key or an application source clone. A matching
 existing deployment can be adopted only after explicit review; that is recorded
 as verification of existing work, rather than a new launch.
+When the existing proxy uses a named TLS resolver, configure the calculator
+route with that existing resolver; the studio does not change proxy settings.
 
 The prepared `check` combines Black, Pylint, pytest and real-browser checks.
 Full local E2E needs local Docker; without it, the coach uses `check --fast`

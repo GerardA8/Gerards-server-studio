@@ -62,6 +62,10 @@ The server needs Docker and working Traefik/HTTPS. A missing baseline is an
 explicit gap to diagnose, not permission to install another proxy or update the
 host. `configure` saves ignored local settings; `plan` is non-mutating and
 `doctor` inspects the remote host read-only. See the lesson for the next step.
+If the existing Traefik routes use a named TLS resolver, verify its name from
+selected router labels and pass it to `configure --tls-resolver`. A reviewed
+resolver change may reconfigure only the owned calculator project; never edit
+Traefik or replace unrelated services to repair its route.
 
 ## Scope, issue and launch
 
