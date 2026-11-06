@@ -54,9 +54,9 @@ chosen hostname later resolved to the server. Studio doctor reported the
 existing network ready and `launch-new`; the learner reviewed the pinned-image
 plan. Windows `check --fast`: Black passed, Pylint flagged POSIX-only `os`
 members, and pytest collection stopped because Windows lacks `signal.SIGHUP`;
-E2E was not run. The configured Ubuntu CI result is pending. The initial launch
-command started the calculator but stopped because trusted HTTPS did not become
-ready. AI found this route lacked a TLS resolver while existing routes used
+E2E was not run. Full Linux CI results are linked from SPEC.md. The initial
+launch command started the calculator but stopped because trusted HTTPS did not
+become ready. AI found this route lacked a TLS resolver while existing routes used
 `le`; after the learner approved the revised plan, the CLI reconfigured only
 the managed calculator project. Its report passed trusted HTTPS and valid and
 rejected API checks, records `reconfigured` (`new_launch: false`), and found
@@ -64,6 +64,6 @@ five unrelated containers unchanged in the selected comparison. The
 [sanitized runtime report](studio/evidence.json) was exported. No successful
 new-launch report exists. Windows `check --fast` still reports POSIX-only
 Pylint symbols and a pytest collection error for `signal.SIGHUP`; E2E was not
-run, and Ubuntu CI is pending. Learner's public-browser observation and keep
-reason are recorded above. See SPEC, [issue #1](https://github.com/GerardA8/Gerards-server-studio/issues/1)
+run locally. Learner's public-browser observation and keep reason are recorded
+above. See SPEC, [issue #1](https://github.com/GerardA8/Gerards-server-studio/issues/1)
 and sanitized evidence; do not fabricate missing conversation or outcomes.
